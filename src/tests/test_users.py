@@ -79,3 +79,33 @@ def test_all_users(test_app, test_database, add_user):
     assert 'john@algonquincollege.com' in data[0]['email']
     assert 'fletcher' in data[1]['username']
     assert 'fletcher@notreal.com' in data[1]['email']
+
+
+def test_update_user(test_app, test_database, add_user):
+    client = test_app.test_client()
+    # Add a user
+    resp = client.post(
+        '/users', data=json.dumps({'username': 'alice', 'email': 'alice@tdd.io'}),
+        content_type='application/json',
+    )
+    data = json.loads(resp.data.decode())
+    assert resp.status_code == 201
+
+    # Get the user ID from the response
+    user_id = data['id']
+
+    # Update the user
+    resp = client.put(
+        f'/users/{user_id}', data=json.dumps({'username': 'updated_alice', 'email': 'updated_alice@testdriven.io'}),
+        content_type='application/json',
+    )
+    updated_data = json.loads(resp.data.decode())
+    assert resp.status_code == 200
+    assert 'User {user_id} has been updated' in updated_data['message']
+
+    # Check if the user information has been updated
+    resp = client.get(f'/users/{user_id}')
+    updated_user_data = json.loads(resp.data.decode())
+    assert resp.status_code == 200
+    assert 'updated_alice' in updated_user_data['username']
+    assert 'updated_alice@testdriven.io' in updated_user_data['email']

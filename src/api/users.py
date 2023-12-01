@@ -48,6 +48,20 @@ class Users(Resource):
             api.abort(404, f"User {user_id} does not exist")
         return user, 200
 
+    @api.expect(user, validate=True)
+    def put(self, user_id):
+        user = User.query.filter_by(id=user_id).first()
+        if not user:
+            api.abort(404, f"User {user_id} does not exist")
+
+        put_data = request.get_json()
+        user.username = put_data.get('username')
+        user.email = put_data.get('email')
+        db.session.commit()
+
+        response_object = {'message': f'User {user_id} has been updated'}
+        return response_object, 200
+
 
 api.add_resource(UsersList, '/users')
 api.add_resource(Users, '/users/<int:user_id>')
