@@ -49,6 +49,7 @@ class Users(Resource):
         return user, 200
 
     @api.expect(user, validate=True)
+    @api.marshal_with(user)
     def put(self, user_id):
         user = User.query.filter_by(id=user_id).first()
         if not user:
@@ -59,9 +60,11 @@ class Users(Resource):
         user.email = put_data.get('email')
         db.session.commit()
 
-        response_object = {'message': f'User {user_id} has been updated'}
+        response_object = {
+            'message': f'User {user_id} information updated successfully!'}
         return response_object, 200
 
 
 api.add_resource(UsersList, '/users')
 api.add_resource(Users, '/users/<int:user_id>')
+api.add_resource(Users, '/users/<int:user_id>', endpoint='user_by_id')

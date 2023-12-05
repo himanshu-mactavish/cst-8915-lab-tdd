@@ -81,31 +81,59 @@ def test_all_users(test_app, test_database, add_user):
     assert 'fletcher@notreal.com' in data[1]['email']
 
 
+# def test_update_user(test_app, test_database, update_user):
+#     test_database.session.query(User).delete()
+#     client = test_app.test_client()
+#     # Add a user
+#     resp = client.post(
+#         '/users', data=json.dumps({'username': 'john', 'email': 'john@algonquincollege.com'}),
+#         content_type='application/json',
+#     )
+#     data = json.loads(resp.data.decode())
+#     assert resp.status_code == 201
+
+#     # Get the user ID from the response
+#     user_id = data['id']
+
+#     # Update the user
+#     resp = client.put(
+#         f'/users/{user_id}', data=json.dumps({'username': 'john', 'email': 'updated_alice@testdriven.io'}),
+#         content_type='application/json',
+#     )
+#     updated_data = json.loads(resp.data.decode())
+#     assert resp.status_code == 200
+#     assert 'User {user_id} has been updated' in updated_data['message']
+
+#     # Check if the user information has been updated
+#     resp = client.get(f'/users/{user_id}')
+#     updated_user_data = json.loads(resp.data.decode())
+#     assert resp.status_code == 200
+#     assert 'updated_alice' in updated_user_data['username']
+#     assert 'updated_alice@testdriven.io' in updated_user_data['email']
+
+
 def test_update_user(test_app, test_database, add_user):
+    # Arrange: Add a user to the test database
+    existing_user = add_user(username='existinguser',
+                             email='existing@example.com')
     client = test_app.test_client()
-    # Add a user
-    resp = client.post(
-        '/users', data=json.dumps({'username': 'alice', 'email': 'alice@tdd.io'}),
-        content_type='application/json',
-    )
-    data = json.loads(resp.data.decode())
-    assert resp.status_code == 201
+    resp = client.get(f'/users/{existing_user.id}')
 
-    # Get the user ID from the response
-    user_id = data['id']
+    # Act: Make a request to update the user
+    new_data = {'username': 'newusername', 'email': 'newemail@example.com'}
+    client = test_app.test_client()
+    response = client.put(
+        f'/users/{existing_user.id}', data=json.dumps(new_data), content_type='application/json')
 
-    # Update the user
-    resp = client.put(
-        f'/users/{user_id}', data=json.dumps({'username': 'updated_alice', 'email': 'updated_alice@testdriven.io'}),
-        content_type='application/json',
-    )
-    updated_data = json.loads(resp.data.decode())
-    assert resp.status_code == 200
-    assert 'User {user_id} has been updated' in updated_data['message']
+    # Assert: Check the response
+    assert response.status_code == 200
 
-    # Check if the user information has been updated
-    resp = client.get(f'/users/{user_id}')
-    updated_user_data = json.loads(resp.data.decode())
-    assert resp.status_code == 200
-    assert 'updated_alice' in updated_user_data['username']
-    assert 'updated_alice@testdriven.io' in updated_user_data['email']
+    # response test
+    print(response.json)
+    assert 'message' in response.json
+    assert response.json['message'] == f'User {existing_user_id} information updated successfully!'
+
+    # Verify that the user information has been updated in the database
+    updated_user = test_database.session.query(User).get(existing_user.id)
+    assert updated_user.username == new_data['username']
+    assert updated_user.email == new_data['email']
