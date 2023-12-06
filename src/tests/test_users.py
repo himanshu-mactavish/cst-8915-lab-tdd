@@ -1,16 +1,21 @@
 import json
 
-from src.api.models import User
+import pytest
+
+from src.api.users.models import User
 
 
 def test_add_user(test_app, test_database):
     client = test_app.test_client()
     resp = client.post(
-        '/users', data=json.dumps({'username': 'john', 'email': 'john@algonquincollege.com'}), content_type='application/json',
+        "/users",
+        data=json.dumps(
+            {'username': 'john', 'email': 'john@algonquincollege.com'}),
+        content_type="application/json",
     )
     data = json.loads(resp.data.decode())
     assert resp.status_code == 201
-    assert 'john@algonquincollege.com was added!' in data['message']
+    assert "john@algonquincollege.com was added!" in data["message"]
 
 
 def test_add_user_invalid_json(test_app, test_database):
@@ -27,7 +32,7 @@ def test_add_user_invalid_json(test_app, test_database):
 def test_add_user_invalid_json_keys(test_app, test_database):
     client = test_app.test_client()
     resp = client.post('/users',
-                       data=json.dumps({"email": "john@testdriven.io"}),
+                       data=json.dumps({"email": "john@algonquinlive.com"}),
                        content_type='application/json',
                        )
     data = json.loads(resp.data.decode())
@@ -49,13 +54,13 @@ def test_add_user_duplicate_email(test_app, test_database):
 
 
 def test_single_user(test_app, test_database, add_user):
-    user = add_user('jeffrey', 'jeffrey@testdriven.io')
+    user = add_user("jeffrey", "jeffrey@algonquinlive.com")
     client = test_app.test_client()
-    resp = client.get(f'/users/{user.id}')
+    resp = client.get(f"/users/{user.id}")
     data = json.loads(resp.data.decode())
     assert resp.status_code == 200
-    assert 'jeffrey' in data['username']
-    assert 'jeffrey@testdriven.io' in data['email']
+    assert "jeffrey" in data["username"]
+    assert "jeffrey@algonquinlive.com" in data["email"]
 
 
 def test_single_user_incorrect_id(test_app, test_database):
@@ -68,72 +73,104 @@ def test_single_user_incorrect_id(test_app, test_database):
 
 def test_all_users(test_app, test_database, add_user):
     test_database.session.query(User).delete()
-    add_user('john', 'john@algonquincollege.com')
-    add_user('fletcher', 'fletcher@notreal.com')
+    add_user("michael", "michael@mherman.org")
+    add_user("fletcher", "fletcher@notreal.com")
     client = test_app.test_client()
-    resp = client.get('/users')
+    resp = client.get("/users")
     data = json.loads(resp.data.decode())
     assert resp.status_code == 200
     assert len(data) == 2
-    assert 'john' in data[0]['username']
-    assert 'john@algonquincollege.com' in data[0]['email']
-    assert 'fletcher' in data[1]['username']
-    assert 'fletcher@notreal.com' in data[1]['email']
+    assert "michael" in data[0]["username"]
+    assert "michael@mherman.org" in data[0]["email"]
+    assert "fletcher" in data[1]["username"]
+    assert "fletcher@notreal.com" in data[1]["email"]
 
 
-# def test_update_user(test_app, test_database, update_user):
-#     test_database.session.query(User).delete()
-#     client = test_app.test_client()
-#     # Add a user
-#     resp = client.post(
-#         '/users', data=json.dumps({'username': 'john', 'email': 'john@algonquincollege.com'}),
-#         content_type='application/json',
-#     )
-#     data = json.loads(resp.data.decode())
-#     assert resp.status_code == 201
+def test_remove_user(test_app, test_database, add_user):
+    test_database.session.query(User).delete()
+    user = add_user("user-to-be-removed", "remove-me@algonquinlive.com")
+    client = test_app.test_client()
+    resp_one = client.get("/users")
+    data = json.loads(resp_one.data.decode())
+    assert resp_one.status_code == 200
+    assert len(data) == 1
 
-#     # Get the user ID from the response
-#     user_id = data['id']
+    resp_two = client.delete(f"/users/{user.id}")
+    data = json.loads(resp_two.data.decode())
+    assert resp_two.status_code == 200
+    assert "remove-me@algonquinlive.com was removed!" in data["message"]
 
-#     # Update the user
-#     resp = client.put(
-#         f'/users/{user_id}', data=json.dumps({'username': 'john', 'email': 'updated_alice@testdriven.io'}),
-#         content_type='application/json',
-#     )
-#     updated_data = json.loads(resp.data.decode())
-#     assert resp.status_code == 200
-#     assert 'User {user_id} has been updated' in updated_data['message']
+    resp_three = client.get("/users")
+    data = json.loads(resp_three.data.decode())
+    assert resp_three.status_code == 200
+    assert len(data) == 0
 
-#     # Check if the user information has been updated
-#     resp = client.get(f'/users/{user_id}')
-#     updated_user_data = json.loads(resp.data.decode())
-#     assert resp.status_code == 200
-#     assert 'updated_alice' in updated_user_data['username']
-#     assert 'updated_alice@testdriven.io' in updated_user_data['email']
+
+def test_remove_user_incorrect_id(test_app, test_database):
+    client = test_app.test_client()
+    resp = client.delete("/users/999")
+    data = json.loads(resp.data.decode())
+    assert resp.status_code == 404
+    assert "User 999 does not exist" in data["message"]
 
 
 def test_update_user(test_app, test_database, add_user):
-    # Arrange: Add a user to the test database
-    existing_user = add_user(username='existinguser',
-                             email='existing@example.com')
+    user = add_user("user-to-be-updated", "update-me@algonquinlive.com")
     client = test_app.test_client()
-    resp = client.get(f'/users/{existing_user.id}')
+    resp_one = client.put(
+        f"/users/{user.id}",
+        data=json.dumps({"username": "me", "email": "me@algonquinlive.com"}),
+        content_type="application/json",
+    )
+    data = json.loads(resp_one.data.decode())
+    assert resp_one.status_code == 200
+    assert f"{user.id} was updated!" in data["message"]
 
-    # Act: Make a request to update the user
-    new_data = {'username': 'newusername', 'email': 'newemail@example.com'}
+    resp_two = client.get(f"/users/{user.id}")
+    data = json.loads(resp_two.data.decode())
+    assert resp_two.status_code == 200
+    assert "me" in data["username"]
+    assert "me@algonquinlive.com" in data["email"]
+
+
+@pytest.mark.parametrize(
+    "user_id, payload, status_code, message",
+    [
+        [1, {}, 400, "Input payload validation failed"],
+        [1, {"email": "me@algonquinlive.com"}, 400,
+            "Input payload validation failed"],
+        [
+            999,
+            {"username": "me", "email": "me@algonquinlive.com"},
+            404,
+            "User 999 does not exist",
+        ],
+    ],
+)
+def test_update_user_invalid(
+    test_app, test_database, user_id, payload, status_code, message
+):
     client = test_app.test_client()
-    response = client.put(
-        f'/users/{existing_user.id}', data=json.dumps(new_data), content_type='application/json')
+    resp = client.put(
+        f"/users/{user_id}",
+        data=json.dumps(payload),
+        content_type="application/json",
+    )
+    data = json.loads(resp.data.decode())
+    assert resp.status_code == status_code
+    assert message in data["message"]
 
-    # Assert: Check the response
-    assert response.status_code == 200
 
-    # response test
-    print(response.json)
-    assert 'message' in response.json
-    assert response.json['message'] == f'User {existing_user_id} information updated successfully!'
+def test_update_user_duplicate_email(test_app, test_database, add_user):
+    add_user("hajek", "rob@hajek.org")
+    user = add_user("rob", "rob@notreal.com")
 
-    # Verify that the user information has been updated in the database
-    updated_user = test_database.session.query(User).get(existing_user.id)
-    assert updated_user.username == new_data['username']
-    assert updated_user.email == new_data['email']
+    client = test_app.test_client()
+    resp = client.put(
+        f"/users/{user.id}",
+        data=json.dumps({"username": "rob", "email": "rob@notreal.com"}),
+        content_type="application/json",
+    )
+    data = json.loads(resp.data.decode())
+    assert resp.status_code == 400
+    assert "Sorry. That email already exists." in data["message"]
